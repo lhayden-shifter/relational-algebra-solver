@@ -1,0 +1,663 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Relational Algebra Framework Solver - Updated</title>
+<style>
+  :root{
+    --navy:#1f2d4d; --green:#1f9d55; --red:#c73d2a; --bg:#f6f7fb; --card:#ffffff;
+    --muted:#667085; --good:#157347; --warn:#9a6700; --blue:#2563eb; --bluebg:#eff6ff; --redbg:#fef2f2;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;font-family:Arial,Helvetica,sans-serif;background:var(--bg);color:#111827}
+  .wrap{max-width:1320px;margin:0 auto;padding:20px}
+  h1{margin:0 0 14px;color:var(--navy);font-size:30px}
+  .controls,.modebar,.feedback,.rulebar,.teacherbar,.infobar{
+    background:var(--card);border-radius:16px;padding:14px 16px;
+    box-shadow:0 8px 24px rgba(15,23,42,.08);margin-bottom:14px
+  }
+  .controls{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+  input[type="text"]{flex:1 1 420px;min-width:280px;padding:12px 14px;border:1px solid #d0d5dd;border-radius:12px;font-size:20px}
+  button,select{padding:11px 14px;border-radius:12px;border:1px solid #cbd5e1;background:white;font-size:16px;cursor:pointer}
+  button.primary{background:var(--navy);color:white;border-color:var(--navy)}
+  .examples{color:var(--muted);font-size:15px}
+  .modebar,.rulebar,.feedback,.teacherbar,.infobar{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
+  .feedback{min-height:66px}
+  .teacherbar{align-items:flex-start}
+  .message{font-size:18px;color:var(--navy);font-weight:700}
+  .message.small{font-size:16px;font-weight:600}
+  .canvas{background:var(--card);border-radius:22px;box-shadow:0 10px 30px rgba(15,23,42,.08);padding:16px;min-height:620px}
+  svg{width:100%;height:580px;display:block}
+  .choiceRow{display:flex;gap:8px;flex-wrap:wrap}
+  .choiceBtn{min-width:58px;font-size:24px;font-weight:700}
+  .good{color:var(--good)} .warn{color:var(--warn)}
+  .pill{display:inline-block;padding:6px 10px;border-radius:999px;font-weight:700;font-size:14px;background:#eef2ff;color:var(--navy)}
+  .modePill{display:inline-flex;align-items:center;gap:8px;padding:10px 14px;border-radius:999px;font-weight:800;font-size:16px;border:2px solid}
+  .mode-break{background:var(--redbg);color:var(--red);border-color:#fca5a5}
+  .mode-build{background:var(--bluebg);color:var(--blue);border-color:#93c5fd}
+  .ruleText{font-size:18px;font-weight:800;color:var(--navy)}
+  .subrule{font-size:15px;color:var(--muted);font-weight:700}
+  .teacher-panel{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px;width:100%}
+  .teacher-card{border:1px solid #d0d5dd;border-radius:14px;padding:12px;background:#fbfcff}
+  .teacher-card h3{margin:0 0 8px;font-size:15px;color:var(--navy)}
+  .teacher-card p{margin:0;color:#42526b;font-size:14px;line-height:1.4}
+  .hidden{display:none}
+
+button:disabled{opacity:.45;cursor:not-allowed}
+.next-ready{box-shadow:0 0 0 4px rgba(37,99,235,.15);border-color:#2563eb;transform:translateY(-1px)}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Relational Algebra Framework Solver</h1>
+
+  <div class="controls">
+    <label for="equation"><strong>Equation:</strong></label>
+    <input id="equation" type="text" value="w/5-7=3" />
+    <button class="primary" id="solveBtn">Solve</button>
+    <button id="prevBtn">Previous</button>
+    <button id="nextBtn">Next</button>
+    <button id="exportBtn">Export Steps</button>
+    <button onclick="window.print()">Print Page</button>
+    <div class="examples">Examples: 7+s=10 | 7+s+2=15 | 7+(s-3)=10 | w/5-7=3 | 7w+5.8=75.8 | 1/2(5+x)=7.5 | 3(w-5)=45</div>
+  </div>
+
+  <div class="infobar">
+    <div>
+      <span class="pill" id="problemType">Problem type: —</span>
+      <span class="pill" id="stepCount">Steps: —</span>
+    </div>
+    <div>
+      <span class="pill">No visible swap step</span>
+      <span class="pill">Decimals supported</span>
+      <span class="pill">Printable export</span>
+    </div>
+  </div>
+
+  <div class="modebar">
+    <div>
+      <span class="pill">Bottom = BUILD</span>
+      <span class="pill">Diagonals = BREAK / REVEAL</span>
+      <span class="pill">Order preserved when shown</span>
+    </div>
+    <div>
+      <label for="mode"><strong>Mode:</strong></label>
+      <select id="mode">
+        <option>Student</option>
+        <option>Teacher</option>
+      </select>
+    </div>
+  </div>
+
+  <div class="rulebar">
+    <div id="modePill" class="modePill mode-break">RULE VIEW</div>
+    <div>
+      <div id="ruleText" class="ruleText">Break a whole, build a hidden whole, or reveal a missing part.</div>
+      <div id="subRule" class="subrule">Use the triangle to decide the next move.</div>
+    </div>
+  </div>
+
+  <div id="teacherbar" class="teacherbar hidden">
+    <div class="teacher-panel">
+      <div class="teacher-card"><h3>Current equation</h3><p id="teacherEquation">—</p></div>
+      <div class="teacher-card"><h3>Detected structure</h3><p id="teacherStructure">—</p></div>
+      <div class="teacher-card"><h3>Current move</h3><p id="teacherMove">—</p></div>
+      <div class="teacher-card"><h3>Next equation</h3><p id="teacherNext">—</p></div>
+    </div>
+  </div>
+
+  <div class="feedback">
+    <div id="prompt" class="message">Student task: choose the correct move to reveal the next step.</div>
+    <div class="choiceRow" id="choices">
+      <button class="choiceBtn" data-symbol="−">−</button>
+      <button class="choiceBtn" data-symbol="÷">÷</button>
+      <button class="choiceBtn" data-symbol="+">+</button>
+      <button class="choiceBtn" data-symbol="×">×</button>
+    </div>
+    <div id="feedbackText" class="message small"></div>
+  </div>
+
+  <div class="canvas"><svg id="svg" viewBox="0 0 1100 580"></svg></div>
+</div>
+
+<script>
+const svgns = "http://www.w3.org/2000/svg";
+let steps = [], stepIndex = 0, studentLocked = false;
+let currentArch = null;
+let stepSolved = false;
+
+function $(id){ return document.getElementById(id); }
+function clearSVG(){ const svg=$("svg"); while(svg.firstChild) svg.removeChild(svg.firstChild); return svg; }
+function add(el){ $("svg").appendChild(el); return el; }
+function make(tag, attrs={}){ const el=document.createElementNS(svgns, tag); for(const [k,v] of Object.entries(attrs)) el.setAttribute(k,v); return el; }
+function text(x,y,str,opts={}){ const el=make("text",{x,y}); el.textContent=str; el.setAttribute("fill",opts.fill||"#1f2d4d"); el.setAttribute("font-size",opts.size||22); el.setAttribute("font-weight",opts.weight||600); el.setAttribute("text-anchor",opts.anchor||"start"); add(el); return el; }
+function line(x1,y1,x2,y2,opts={}){ const el=make("line",{x1,y1,x2,y2,stroke:opts.stroke||"#25355a","stroke-width":opts.width||4}); if(opts.dash) el.setAttribute("stroke-dasharray",opts.dash); add(el); return el; }
+function circle(cx,cy,r,opts={}){ const el=make("circle",{cx,cy,r,fill:opts.fill||"#fff",stroke:opts.stroke||"#25355a","stroke-width":opts.width||5}); add(el); return el; }
+function rect(x,y,w,h,opts={}){ const el=make("rect",{x,y,width:w,height:h,rx:opts.rx||20,fill:opts.fill||"#fff",stroke:opts.stroke||"#25355a","stroke-width":opts.width||3}); add(el); return el; }
+
+function wrapText(str,maxChars){
+  const words=String(str).split(" ");
+  let lines=[],cur="";
+  for(const w of words){
+    if((cur+" "+w).trim().length<=maxChars){ cur=(cur+" "+w).trim(); }
+    else { if(cur) lines.push(cur); cur=w; }
+  }
+  if(cur) lines.push(cur);
+  if(!lines.length) lines=[String(str)];
+  return lines;
+}
+function centeredWrappedText(cx, cy, str, maxChars=14, fontSize=22){
+  const lines = wrapText(String(str), maxChars);
+  lines.forEach((ln, i) => {
+    text(cx, cy - ((lines.length - 1) * fontSize * 0.62) / 2 + i * fontSize * 1.12, ln, { anchor: "middle", size: fontSize, weight: 700, fill: "#111b36" });
+  });
+}
+function archWithResult(x1, y1, x2, y2, result){
+  const path = document.createElementNS(svgns, "path");
+  const midX = (x1 + x2) / 2;
+
+  // Lower, flatter arch so the result stays between the bottom circles
+  // and does not drift into the top circle.
+  const height = Math.max(32, Math.abs(x1 - x2) * 0.08);
+  const peakY = y1 - height;
+  const d = `M ${x1} ${y1} Q ${midX} ${peakY} ${x2} ${y2}`;
+
+  path.setAttribute("d", d);
+  path.setAttribute("fill", "none");
+  path.setAttribute("stroke", "#2563eb");
+  path.setAttribute("stroke-width", "4");
+  path.setAttribute("stroke-dasharray", "8 8");
+  path.setAttribute("stroke-linecap", "round");
+  add(path);
+
+  try{
+    const len = path.getTotalLength();
+    path.style.strokeDasharray = `${len} ${len}`;
+    path.style.strokeDashoffset = len;
+    path.style.transition = "stroke-dashoffset 0.35s ease";
+    requestAnimationFrame(() => {
+      path.style.strokeDashoffset = "0";
+    });
+  } catch(e) {}
+
+  // Put the result directly on the arch at the highest point.
+  text(midX, peakY + 6, String(result), {
+    size: 18,
+    weight: 900,
+    fill: "#2563eb",
+    anchor: "middle"
+  });
+}
+function showError(msg){
+  clearSVG();
+  text(40,60,"Could not solve",{size:30,weight:800});
+  rect(40,95,1020,140,{stroke:"#c73d2a",fill:"#fff"});
+  wrapText(msg,78).forEach((ln,i)=>text(60,140+i*28,ln,{size:22,weight:500,fill:"#7a271a"}));
+  $("problemType").textContent = "Problem type: unsupported";
+  $("stepCount").textContent = "Steps: —";
+}
+function modeIsStudent(){ return $("mode").value === "Student"; }
+function getMoveLabel(step){
+  if(modeIsStudent()){
+    if(step.studentAction === "reveal") return "REVEAL";
+    if(step.studentAction === "build") return "BUILD";
+    return "BREAK";
+  }
+  return "BREAK";
+}
+function setRuleBar(step){
+  const pill = $("modePill"), rule = $("ruleText"), sub = $("subRule");
+  if(!step || step.type === "final"){
+    pill.className = "modePill mode-break";
+    pill.textContent = "RULE VIEW";
+    rule.textContent = modeIsStudent() ? "Break a whole, build a hidden whole, or reveal a missing part." : "Break the whole or build the hidden whole.";
+    sub.textContent = modeIsStudent() ? "Use the triangle to decide the next move." : "Teacher mode keeps the structural language.";
+    return;
+  }
+  if(step.studentAction === "reveal"){
+    pill.className = "modePill mode-build";
+    pill.textContent = modeIsStudent() ? "REVEAL MODE" : "BREAK MODE";
+    rule.textContent = modeIsStudent() ? "Reveal the missing part from the whole." : "Use division to isolate the missing factor.";
+    sub.textContent = modeIsStudent() ? "Known whole ÷ known part reveals the missing part." : "This is a multiplicative inverse step.";
+    return;
+  }
+  if(step.studentAction === "build"){
+    pill.className = "modePill mode-build";
+    pill.textContent = "BUILD MODE";
+    rule.textContent = modeIsStudent() ? "Build the hidden whole." : "Build the hidden whole.";
+    sub.textContent = modeIsStudent() ? "Choose the bottom operation." : "Choose the same operation shown on the bottom.";
+  } else {
+    pill.className = "modePill mode-break";
+    pill.textContent = "BREAK MODE";
+    rule.textContent = modeIsStudent() ? "Break the whole." : "Break the whole using the inverse.";
+    sub.textContent = modeIsStudent() ? "Choose the opposite move." : "Top is the whole → choose the inverse of the bottom build.";
+  }
+}
+function normalizeEquationText(s){ return s.replace(/\s+/g,""); }
+function parseEquation(eq){
+  eq=normalizeEquationText(eq);
+  const parts=eq.split("=");
+  if(parts.length!==2) throw new Error("Equation must include one = sign.");
+  return {left:parts[0], right:parts[1]};
+}
+function trimNum(n){ if(Number.isInteger(n)) return String(n); return String(Number(n.toFixed(6))); }
+function parseNumber(s){
+  if(/^[-+]?\d+(\.\d+)?$/.test(s)) return Number(s);
+  if(/^[-+]?\d+\/[-+]?\d+$/.test(s)){ const [a,b]=s.split("/").map(Number); return a/b; }
+  throw new Error("This step needs a numeric value, but got: " + s);
+}
+function fmtCoeff(c, v){ if(c === 1) return v; if(c === -1) return "-" + v; return String(c) + v; }
+function detectProblemType(eq){
+  const t = normalizeEquationText(eq);
+  if (/^[a-zA-Z]\/\d+(\.\d+)?-\d+(\.\d+)?=/.test(t) || /^\d+(\.\d+)?=[a-zA-Z]\/\d+(\.\d+)?-\d+(\.\d+)?$/.test(t)) return "variable over constant minus constant";
+  if (/^[a-zA-Z]\/\d+(\.\d+)?\+\d+(\.\d+)?=/.test(t) || /^\d+(\.\d+)?=[a-zA-Z]\/\d+(\.\d+)?\+\d+(\.\d+)?$/.test(t)) return "variable over constant plus constant";
+  if (/^\d+\/\d+\(.+\)=/.test(t)) return "fraction coefficient with grouping";
+  if (/^[-+]?\d+\(.+\)([+-]\d+(\.\d+)?)?=/.test(t)) return "grouped linear equation";
+  if (/^[-+]?\d*(\.\d+)?[a-zA-Z][+-]\d+(\.\d+)?=/.test(t)) return "linear with decimals";
+  if (/^\d+(\.\d+)?\/[a-zA-Z][+-]\d+(\.\d+)?=/.test(t)) return "variable in denominator";
+  return "relational linear equation";
+}
+
+function solveFramework(eq){
+  let {left:L,right:R}=parseEquation(eq);
+  const steps=[];
+
+  // internal only; not shown to students
+  if (!/[a-zA-Z]/.test(L) && /[a-zA-Z]/.test(R)) {
+    const temp = L; L = R; R = temp;
+  }
+
+  while(true){
+    if(/^[a-zA-Z]$/.test(L)){ steps.push({type:"final", equation:`${L} = ${R}`, structure:"isolated variable"}); break; }
+    let p;
+
+    // keep written order for multiplication
+    p = L.match(/^([+-]?\d+)\/([+-]?\d+)\(([^)]+)\)$/);
+    if(p){
+      const num=Number(p[1]), den=Number(p[2]), inner=p[3], coeff=num/den;
+      const nextRight = trimNum(parseNumber(R) / coeff);
+      steps.push({type:"triangle", title:"Use the triangle", equation:`${L} = ${R}`, whole:R, leftPart:`${p[1]}/${p[2]}`, rightPart:inner, buildSymbol:"×", breakSymbol:"÷", studentAction:"break", expectedChoice:"÷", nextEquation:`${inner} = ${nextRight}`, structure:"fraction coefficient times group",
+        breakTarget:"left"});
+      L=inner; R=nextRight; continue;
+    }
+
+    p = L.match(/^([+-]?\d+)\(([^)]+)\)\+(\d+(\.\d+)?)$/);
+    if(p){
+      const outer=Number(p[1]), inner=p[2], constant=Number(p[3]);
+      const nextRight = trimNum(parseNumber(R) - constant);
+      steps.push({type:"triangle", title:"Use the triangle", equation:`${L} = ${R}`, whole:R, leftPart:`${outer}(${inner})`, rightPart:String(constant), buildSymbol:"+", breakSymbol:"−", studentAction:"break", expectedChoice:"−", nextEquation:`${outer}(${inner}) = ${nextRight}`, structure:"group plus outside constant", breakTarget:"right"});
+      L=`${outer}(${inner})`; R=nextRight; continue;
+    }
+
+    p = L.match(/^([+-]?\d+)\(([^)]+)\)-(\d+(\.\d+)?)$/);
+    if(p){
+      const outer=Number(p[1]), inner=p[2], constant=Number(p[3]);
+      const nextRight = trimNum(parseNumber(R) + constant);
+      steps.push({type:"triangle", title:"Use the regroup triangle", equation:`${L} = ${R}`, whole:`${outer}${inner}`, leftPart:String(constant), rightPart:R, buildSymbol:"+", breakSymbol:"−", studentAction:"build", expectedChoice:"+", nextEquation:`${outer}(${inner}) = ${nextRight}`, structure:"group minus outside constant"});
+      L=`${outer}(${inner})`; R=nextRight; continue;
+    }
+
+    p = L.match(/^([+-]?\d+)\(([^)]+)\)$/);
+    if(p){
+      const outer=Number(p[1]), inner=p[2];
+      const nextRight = trimNum(parseNumber(R) / outer);
+      steps.push({type:"triangle", title:"Use the triangle", equation:`${L} = ${R}`, whole:R, leftPart:String(outer), rightPart:inner, buildSymbol:"×", breakSymbol:"÷", studentAction:"break", expectedChoice:"÷", nextEquation:`${inner} = ${nextRight}`, structure:"coefficient times group",
+        breakTarget:"left"});
+      L=inner; R=nextRight; continue;
+    }
+
+    // subtraction regroup rule: whole - part = remainder -> bottom left part, bottom right remainder
+    p = L.match(/^([a-zA-Z])\/([+-]?\d+(\.\d+)?)-(\d+(\.\d+)?)$/);
+    if(p){
+      const variable=p[1], divisor=Number(p[2]), constant=Number(p[4]);
+      const nextRight = trimNum(parseNumber(R) + constant);
+      steps.push({type:"triangle", title:"Use the regroup triangle", equation:`${L} = ${R}`, whole:`${variable}/${divisor}`, leftPart:String(constant), rightPart:R, buildSymbol:"+", breakSymbol:"−", studentAction:"build", expectedChoice:"+", nextEquation:`${variable}/${divisor} = ${nextRight}`, structure:"variable over constant minus constant"});
+      L=`${variable}/${divisor}`; R=nextRight; continue;
+    }
+
+    p = L.match(/^([+-]?\d+)\/([a-zA-Z])-(\d+(\.\d+)?)$/);
+    if(p){
+      const numerator=Number(p[1]), variable=p[2], constant=Number(p[3]);
+      const nextRight = trimNum(parseNumber(R) + constant);
+      steps.push({type:"triangle", title:"Use the regroup triangle", equation:`${L} = ${R}`, whole:`${numerator}/${variable}`, leftPart:String(constant), rightPart:R, buildSymbol:"+", breakSymbol:"−", studentAction:"build", expectedChoice:"+", nextEquation:`${numerator}/${variable} = ${nextRight}`, structure:"constant over variable minus constant"});
+      L=`${numerator}/${variable}`; R=nextRight; continue;
+    }
+
+    p = L.match(/^([+-]?\d*(\.\d+)?)([a-zA-Z])-(\d+(\.\d+)?)$/);
+    if(p){
+      const coeffRaw=p[1], variable=p[3], constant=Number(p[4]);
+      const coeff=(coeffRaw===""||coeffRaw==="+")?1:(coeffRaw==="-"?-1:Number(coeffRaw));
+      const whole=fmtCoeff(coeff, variable);
+      const nextRight = trimNum(parseNumber(R) + constant);
+      steps.push({type:"triangle", title:"Use the regroup triangle", equation:`${L} = ${R}`, whole:whole, leftPart:String(constant), rightPart:R, buildSymbol:"+", breakSymbol:"−", studentAction:"build", expectedChoice:"+", nextEquation:`${whole} = ${nextRight}`, structure:"linear expression minus constant"});
+      L=whole; R=nextRight; continue;
+    }
+
+    p = L.match(/^([a-zA-Z])\/([+-]?\d+(\.\d+)?)\+(\d+(\.\d+)?)$/);
+    if(p){
+      const variable=p[1], divisor=Number(p[2]), constant=Number(p[4]);
+      const nextRight = trimNum(parseNumber(R) - constant);
+      steps.push({type:"triangle", title:"Use the triangle", equation:`${L} = ${R}`, whole:R, leftPart:`${variable}/${divisor}`, rightPart:String(constant), buildSymbol:"+", breakSymbol:"−", studentAction:"break", expectedChoice:"−", nextEquation:`${variable}/${divisor} = ${nextRight}`, structure:"variable over constant plus constant", breakTarget:"right"});
+      L=`${variable}/${divisor}`; R=nextRight; continue;
+    }
+
+    p = L.match(/^([a-zA-Z])\/([+-]?\d+(\.\d+)?)$/);
+    if(p){
+      const variable=p[1], divisor=Number(p[2]), nextRight=trimNum(parseNumber(R)*divisor);
+      steps.push({type:"triangle", title:"Use the triangle", equation:`${L} = ${R}`, whole:variable, leftPart:String(divisor), rightPart:R, buildSymbol:"×", breakSymbol:"÷", studentAction:"build", expectedChoice:"×", nextEquation:`${variable} = ${nextRight}`, structure:"variable over constant"});
+      L=variable; R=nextRight; continue;
+    }
+
+    p = L.match(/^([+-]?\d+)\/([a-zA-Z])$/);
+    if(p){
+      const numerator=Number(p[1]), variable=p[2];
+      const nextValue = trimNum(numerator / parseNumber(R));
+      steps.push({type:"triangle", title:"Use the triangle", equation:`${L} = ${R}`, whole:String(numerator), leftPart:R, rightPart:variable, buildSymbol:"×", breakSymbol:"÷", studentAction:"reveal", expectedChoice:"÷", nextEquation:`${variable} = ${nextValue}`, structure:"constant over variable"});
+      L=variable; R=nextValue; continue;
+    }
+
+    p = L.match(/^([+-]?\d*(\.\d+)?)([a-zA-Z])\+(\d+(\.\d+)?)$/);
+    if(p){
+      const coeffRaw=p[1], variable=p[3], constant=Number(p[4]);
+      const coeff=(coeffRaw===""||coeffRaw==="+")?1:(coeffRaw==="-"?-1:Number(coeffRaw));
+      const varPart=fmtCoeff(coeff, variable);
+      const nextRight = trimNum(parseNumber(R) - constant);
+      steps.push({type:"triangle", title:"Use the triangle", equation:`${L} = ${R}`, whole:R, leftPart:varPart, rightPart:String(constant), buildSymbol:"+", breakSymbol:"−", studentAction:"break", expectedChoice:"−", nextEquation:`${varPart} = ${nextRight}`, structure:"linear expression plus decimal/constant", breakTarget:"right"});
+      L=varPart; R=nextRight; continue;
+    }
+
+    p = L.match(/^([+-]?\d+(\.\d+)?)([a-zA-Z])$/);
+    if(p){
+      const coeff=Number(p[1]), variable=p[3], nextRight=trimNum(parseNumber(R)/coeff);
+      steps.push({type:"triangle", title:"Use the triangle", equation:`${L} = ${R}`, whole:R, leftPart:String(coeff), rightPart:variable, buildSymbol:"×", breakSymbol:"÷", studentAction:"break", expectedChoice:"÷", nextEquation:`${variable} = ${nextRight}`, structure:"coefficient times variable",
+        breakTarget:"left"});
+      L=variable; R=nextRight; continue;
+    }
+
+    p = L.match(/^\(([^)]+)\)$/);
+    if(p){
+      const inner=p[1];
+
+      let q = inner.match(/^([a-zA-Z])\+(\d+(\.\d+)?)$/) || inner.match(/^(\d+(\.\d+)?)\+([a-zA-Z])$/);
+      if(q){
+        const variable = /[a-zA-Z]/.test(q[1]) ? q[1] : q[3];
+        const c = /[a-zA-Z]/.test(q[1]) ? Number(q[2]) : Number(q[1]);
+        const nextRight = trimNum(parseNumber(R) - c);
+        steps.push({type:"triangle", title:"Use the triangle", equation:`${L} = ${R}`, whole:R, leftPart:variable, rightPart:String(c), buildSymbol:"+", breakSymbol:"−", studentAction:"break", expectedChoice:"−", nextEquation:`${variable} = ${nextRight}`, structure:"variable and constant in a group"});
+        L=variable; R=nextRight; continue;
+      }
+
+      q = inner.match(/^([a-zA-Z])-(\d+(\.\d+)?)$/);
+      if(q){
+        const variable=q[1], constant=Number(q[2]);
+        const nextRight = trimNum(parseNumber(R) + constant);
+        steps.push({type:"triangle", title:"Use the regroup triangle", equation:`${L} = ${R}`, whole:variable, leftPart:String(constant), rightPart:R, buildSymbol:"+", breakSymbol:"−", studentAction:"build", expectedChoice:"+", nextEquation:`${variable} = ${nextRight}`, structure:"variable minus constant in a group"});
+        L=variable; R=nextRight; continue;
+      }
+    }
+
+
+    // number + variable
+    p = L.match(/^(\d+(\.\d+)?)\+([a-zA-Z])$/);
+    if(p){
+      const constant = Number(p[1]);
+      const variable = p[3];
+      const nextRight = trimNum(parseNumber(R) - constant);
+      steps.push({
+        type:"triangle",
+        title:"Use the triangle",
+        equation:`${L} = ${R}`,
+        whole:R,
+        leftPart:String(constant),
+        rightPart:variable,
+        buildSymbol:"+",
+        breakSymbol:"−",
+        studentAction:"break",
+        expectedChoice:"−",
+        nextEquation:`${variable} = ${nextRight}`,
+        structure:"constant plus variable",
+        breakTarget:"left"
+      });
+      L = variable; R = nextRight; continue;
+    }
+
+    // number + variable + number
+    p = L.match(/^(\d+(\.\d+)?)\+([a-zA-Z])\+(\d+(\.\d+)?)$/);
+    if(p){
+      const c1 = Number(p[1]);
+      const variable = p[3];
+      const c2 = Number(p[4]);
+      const totalConst = c1 + c2;
+      const nextRight = trimNum(parseNumber(R) - totalConst);
+      steps.push({
+        type:"triangle",
+        title:"Use the triangle",
+        equation:`${L} = ${R}`,
+        whole:R,
+        leftPart:`${c1}+${variable}`,
+        rightPart:String(c2),
+        buildSymbol:"+",
+        breakSymbol:"−",
+        studentAction:"break",
+        expectedChoice:"−",
+        nextEquation:`${c1}+${variable} = ${trimNum(parseNumber(R) - c2)}`,
+        structure:"three-term addition",
+        breakTarget:"right"
+      });
+      steps.push({
+        type:"triangle",
+        title:"Use the triangle",
+        equation:`${c1}+${variable} = ${trimNum(parseNumber(R) - c2)}`,
+        whole:trimNum(parseNumber(R) - c2),
+        leftPart:String(c1),
+        rightPart:variable,
+        buildSymbol:"+",
+        breakSymbol:"−",
+        studentAction:"break",
+        expectedChoice:"−",
+        nextEquation:`${variable} = ${nextRight}`,
+        structure:"constant plus variable",
+        breakTarget:"left"
+      });
+      L = variable; R = nextRight; continue;
+    }
+
+    // number + (variable - number)
+    p = L.match(/^(\d+(\.\d+)?)\+\(([a-zA-Z])-(\d+(\.\d+)?)\)$/);
+    if(p){
+      const outerConst = Number(p[1]);
+      const variable = p[3];
+      const innerConst = Number(p[4]);
+      const afterBreak = trimNum(parseNumber(R) - outerConst);
+      steps.push({
+        type:"triangle",
+        title:"Use the triangle",
+        equation:`${L} = ${R}`,
+        whole:R,
+        leftPart:String(outerConst),
+        rightPart:`${variable}-${innerConst}`,
+        buildSymbol:"+",
+        breakSymbol:"−",
+        studentAction:"break",
+        expectedChoice:"−",
+        nextEquation:`${variable}-${innerConst} = ${afterBreak}`,
+        structure:"constant plus grouped subtraction"
+      });
+      const finalRight = trimNum(parseNumber(afterBreak) + innerConst);
+      steps.push({
+        type:"triangle",
+        title:"Use the regroup triangle",
+        equation:`${variable}-${innerConst} = ${afterBreak}`,
+        whole:variable,
+        leftPart:String(innerConst),
+        rightPart:afterBreak,
+        buildSymbol:"+",
+        breakSymbol:"−",
+        studentAction:"build",
+        expectedChoice:"+",
+        nextEquation:`${variable} = ${finalRight}`,
+        structure:"variable minus constant"
+      });
+      L = variable; R = finalRight; continue;
+    }
+
+
+    throw new Error(`That equation form is not supported yet: ${L} = ${R}`);
+  }
+  return steps;
+}
+
+function getStudentPrompt(step){
+  if(step.studentAction === "build") return "Student task: choose what builds the whole to reveal the next step.";
+  if(step.studentAction === "reveal") return "Student task: choose the move that reveals the missing part.";
+  return "Student task: choose the correct move to reveal the next step.";
+}
+function updateTeacherPanel(step){
+  $("teacherbar").classList.toggle("hidden", $("mode").value !== "Teacher");
+  if($("mode").value !== "Teacher") return;
+  $("teacherEquation").textContent = step.equation || "—";
+  $("teacherStructure").textContent = step.structure || "—";
+  $("teacherMove").textContent = step.type === "triangle" ? (step.studentAction === "build" ? "Build the hidden whole" : step.studentAction === "reveal" ? "Reveal the missing part" : "Break the whole") : "Complete";
+  $("teacherNext").textContent = step.nextEquation || "—";
+}
+
+function render(){
+  const step = steps[stepIndex];
+  stepSolved = !!(currentArch && currentArch.stepIndex === stepIndex);
+  $("nextBtn").disabled = !stepSolved;
+  $("nextBtn").classList.toggle("next-ready", stepSolved);
+  clearSVG();
+  $("feedbackText").textContent = "";
+  setRuleBar(step);
+  updateTeacherPanel(step);
+
+  if(step.type==="triangle"){
+    $("choices").style.display="flex";
+    if($("mode").value==="Teacher"){ $("prompt").textContent = "Teacher note: follow the structure shown."; studentLocked=false; }
+    else { $("prompt").textContent = getStudentPrompt(step); studentLocked=true; }
+
+    text(24,36,`Step ${stepIndex+1}: ${step.title}    ${step.equation}`,{size:24,weight:800});
+    const top={x:550,y:120}, left={x:270,y:400}, right={x:830,y:400}, r=95;
+    line(left.x+r,left.y,right.x-r,right.y,{stroke:"#1f9d55",width:10});
+    text(550,430,step.buildSymbol,{size:40,weight:900,fill:"#1f9d55",anchor:"middle"});
+    text(550,462,"BUILD",{size:20,weight:800,fill:"#1f9d55",anchor:"middle"});
+    line(top.x-60,top.y+72,left.x+70,left.y-70,{stroke:"#c73d2a",width:8,dash:"12 10"});
+    line(top.x+60,top.y+72,right.x-70,right.y-70,{stroke:"#c73d2a",width:8,dash:"12 10"});
+    const sideLabel = getMoveLabel(step);
+    text(365,250,step.breakSymbol,{size:34,weight:900,fill:"#c73d2a",anchor:"middle"});
+    text(735,250,step.breakSymbol,{size:34,weight:900,fill:"#c73d2a",anchor:"middle"});
+    text(395,292,sideLabel,{size:18,weight:800,fill:"#c73d2a",anchor:"middle"});
+    text(705,292,sideLabel,{size:18,weight:800,fill:"#c73d2a",anchor:"middle"});
+    circle(top.x,top.y,r); circle(left.x,left.y,r); circle(right.x,right.y,r);
+    centeredWrappedText(top.x, top.y, step.whole, 14, 24);
+    centeredWrappedText(left.x, left.y, step.leftPart, 14, 22);
+    centeredWrappedText(right.x, right.y, step.rightPart, 14, 22);
+
+    if (currentArch && currentArch.stepIndex === stepIndex) {
+      if (step.studentAction === "build") {
+        archWithResult(left.x, left.y - 80, right.x, right.y - 80, currentArch.result);
+      } else if (step.studentAction === "break") {
+        const target = step.breakTarget === "left" ? left : right;
+        archWithResult(top.x, top.y + 85, target.x, target.y - 85, currentArch.result);
+      } else {
+        archWithResult(left.x, left.y - 80, right.x, right.y - 80, currentArch.result);
+      }
+    }
+    return;
+  }
+
+  $("choices").style.display="none";
+  $("prompt").textContent="Final answer";
+  text(30,46,"Solve Complete",{size:30,weight:800});
+  text(550,290,step.equation,{size:48,weight:900,anchor:"middle"});
+}
+
+function exportSteps(){
+  if(!steps.length) return;
+  const eq = $("equation").value;
+  let rows = "";
+  steps.forEach((step, i) => {
+    if(step.type === "triangle"){
+      rows += `<tr><td>${i+1}</td><td>${step.equation}</td><td>${step.whole}</td><td>${step.leftPart}</td><td>${step.rightPart}</td><td>${step.buildSymbol}</td><td>${step.breakSymbol}</td><td>${step.nextEquation}</td></tr>`;
+    } else {
+      rows += `<tr><td>${i+1}</td><td colspan="7">${step.equation}</td></tr>`;
+    }
+  });
+  const win = window.open("", "_blank");
+  win.document.write(`<html><head><title>Relational Algebra Steps</title><style>body{font-family:Arial,sans-serif;padding:24px}h1{margin-bottom:8px}table{border-collapse:collapse;width:100%;margin-top:18px}th,td{border:1px solid #999;padding:8px;text-align:left}th{background:#f2f4f7}
+button:disabled{opacity:.45;cursor:not-allowed}
+.next-ready{box-shadow:0 0 0 4px rgba(37,99,235,.15);border-color:#2563eb;transform:translateY(-1px)}
+</style></head><body><h1>Relational Algebra Framework Steps</h1><p><strong>Equation:</strong> ${eq}</p><p><strong>Problem type:</strong> ${detectProblemType(eq)}</p><table><thead><tr><th>Step</th><th>Equation</th><th>Top</th><th>Bottom Left</th><th>Bottom Right</th><th>Build</th><th>Break/Reveal</th><th>Next Equation</th></tr></thead><tbody>${rows}</tbody></table></body></html>`);
+  win.document.close(); win.focus(); win.print();
+}
+
+$("solveBtn").addEventListener("click",()=>{
+  try{
+    steps=solveFramework($("equation").value);
+    stepIndex=0;
+    currentArch = null;
+    stepSolved = false;
+    $("nextBtn").disabled = true;
+    $("nextBtn").classList.remove("next-ready");
+    $("problemType").textContent = "Problem type: " + detectProblemType($("equation").value);
+    $("stepCount").textContent = "Steps: " + steps.length;
+    render();
+  } catch(err){ showError(err.message); }
+});
+$("prevBtn").addEventListener("click",()=>{ if(stepIndex>0){ stepIndex--; currentArch = null; stepSolved = false; $("nextBtn").disabled = true; $("nextBtn").classList.remove("next-ready"); render(); }});
+function handleNextStep(){
+  if (!stepSolved) return;
+  if (stepIndex < steps.length - 1) {
+    stepIndex++;
+    currentArch = null;
+    stepSolved = false;
+    studentLocked = true;
+    $("feedbackText").textContent = "";
+    $("nextBtn").disabled = true;
+    $("nextBtn").classList.remove("next-ready");
+    render();
+  }
+}
+$("nextBtn").onclick = handleNextStep;
+$("exportBtn").addEventListener("click", exportSteps);
+$("mode").addEventListener("change",render);
+document.querySelectorAll(".choiceBtn").forEach(btn=>btn.addEventListener("click",()=>{
+  const step=steps[stepIndex];
+  if(!step || step.type!=="triangle" || $("mode").value==="Teacher") return;
+  if(btn.dataset.symbol===step.expectedChoice){
+    if(step.studentAction === "build") $("feedbackText").textContent = `Correct. Build the whole with ${step.buildSymbol}. Press Next to continue.`;
+    else if(step.studentAction === "reveal") $("feedbackText").textContent = `Correct. Reveal the missing part with ${step.breakSymbol}. Press Next to continue.`;
+    else $("feedbackText").textContent = `Correct. Break the whole with ${step.breakSymbol}. Press Next to continue.`;
+    $("feedbackText").className="message small good";
+    studentLocked=false;
+
+    const resultValue = (step.nextEquation && step.nextEquation.includes("="))
+      ? step.nextEquation.split("=")[1].trim()
+      : "";
+
+    currentArch = {
+      stepIndex,
+      result: resultValue
+    };
+    stepSolved = true;
+    $("nextBtn").disabled = false;
+    $("nextBtn").classList.add("next-ready");
+    render();
+  } else {
+    if(step.studentAction === "build") $("feedbackText").textContent = "Not yet. Choose the bottom build operation.";
+    else if(step.studentAction === "reveal") $("feedbackText").textContent = "Not yet. Choose the move that reveals the missing part.";
+    else $("feedbackText").textContent = "Not yet. Choose the move that breaks the whole.";
+    $("feedbackText").className="message small warn";
+  }
+}));
+
+try{
+  steps=solveFramework($("equation").value);
+  $("problemType").textContent = "Problem type: " + detectProblemType($("equation").value);
+  $("stepCount").textContent = "Steps: " + steps.length;
+  render();
+}catch(err){ showError(err.message); }
+</script>
+</body>
+</html>
