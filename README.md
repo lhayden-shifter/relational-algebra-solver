@@ -11,7 +11,7 @@ Students use triangles (number bonds) to understand relationships between the wh
 
 🚀 Live Demo
 
-(Add your GitHub Pages link here once published)
+
 👉 https://lhayden-shifter.github.io/relational-algebra-solver/
 
 🎯 Purpose
@@ -80,6 +80,7 @@ Builds relational thinking
 Reinforces inverse operations naturally
 Supports visual learners
 Encourages student agency
+
 💻 How to Use
 Enter an equation
 Click Solve
@@ -87,23 +88,9 @@ Analyze the triangle
 Choose the correct operation
 Observe the arch (result visualization)
 Click Next to continue
+
 🌐 Deployment (GitHub Pages)
 
-To publish:
-
-Upload files to your repository
-Go to Settings → Pages
-Select:
-Source: main
-Folder: / (root)
-Save
-Your site will be live 🎉
-🔮 Future Enhancements
-Student progress tracking
-Problem sets / assignments
-Animated operation flows
-Teacher dashboard
-Mobile optimization improvements
 👩🏽‍🏫 Author
 
 Created by Lozetta Hayden
@@ -112,7 +99,7 @@ Middle School Educator | Instructional Innovator
 📌 License
 
 This project is currently for non-paid educational use only.
-Contact owner for permissions outside of those stated.
+Contact the owner for permissions outside of those stated.
 
 💬 Final Thought
 
