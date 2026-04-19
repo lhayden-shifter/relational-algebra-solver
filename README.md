@@ -12,7 +12,7 @@ Students use triangles (number bonds) to understand relationships between the wh
 🚀 Live Demo
 
 
-👉 https://lhayden-shifter.github.io/relational-algebra-solver/
+👉 [https://lhayden-shifter.github.io/relational-algebra-solver/
 
 🎯 Purpose
 
